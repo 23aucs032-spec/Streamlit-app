@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.preprocessing import LabelEncoder
+
 import pydotplus
-from io import BytesIO
+from io import StringIO
 from PIL import Image
-import graphviz
 
 
 # ----------------------------------------------------
@@ -37,12 +37,14 @@ model_type = st.sidebar.selectbox(
     ["Regression", "Classification", "Clustering"]
 )
 
+
 # Regression Options
 if model_type == "Regression":
     algorithm = st.sidebar.selectbox(
         "Regression Algorithm",
-        ["Linear Regression", "Random Forest Regressor", "Support Vector Regressor",
-         "Decision Tree Regressor", "KNN Regressor"]
+        ["Linear Regression", "Random Forest Regressor",
+         "Support Vector Regressor", "Decision Tree Regressor",
+         "KNN Regressor"]
     )
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
@@ -50,18 +52,21 @@ if model_type == "Regression":
     if algorithm in ["Decision Tree Regressor", "Random Forest Regressor"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
 
+
 # Classification Options
 elif model_type == "Classification":
     algorithm = st.sidebar.selectbox(
         "Classification Algorithm",
-        ["Logistic Regression", "Random Forest Classifier", "Support Vector Classifier",
-         "Decision Tree Classifier", "KNN Classifier"]
+        ["Logistic Regression", "Random Forest Classifier",
+         "Support Vector Classifier", "Decision Tree Classifier",
+         "KNN Classifier"]
     )
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
     if algorithm in ["Decision Tree Classifier", "Random Forest Classifier"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
+
 
 # Clustering Options
 else:
@@ -98,7 +103,7 @@ if uploaded_file:
     for col in cat_cols:
         df[col] = labelencoder.fit_transform(df[col].astype(str))
 
-    st.write("Processed Data")
+    st.write("Processed Data:")
     st.dataframe(df)
 
     feature_cols = st.multiselect("Select Feature Columns (X)", df.columns)
@@ -109,9 +114,7 @@ if uploaded_file:
         label_col = None
         n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        run_model = st.button("Submit")
+    run_model = st.button("Submit")
 
 
     # ----------------------------------------------------
@@ -120,11 +123,11 @@ if uploaded_file:
     if run_model:
 
         if len(feature_cols) < 1:
-            st.error("Please select at least one feature column.")
+            st.error("Select at least one feature column.")
             st.stop()
 
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("Label column cannot be a feature.")
+            st.error("Label column cannot be inside X features.")
             st.stop()
 
         X = df[feature_cols]
@@ -143,14 +146,14 @@ if uploaded_file:
             df["Cluster"] = clusters
 
             st.success("Clustering Completed!")
-            st.dataframe(df[["Cluster"]])
+            st.dataframe(df)
 
             if len(feature_cols) >= 2:
-                fig, ax = plt.subplots(figsize=(8,6))
-                ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters)
                 st.pyplot(fig)
             else:
-                st.warning("Need at least 2 features to plot clusters.")
+                st.warning("Select 2+ features to plot clusters")
 
 
         # ----------------------------------------------------
@@ -164,6 +167,7 @@ if uploaded_file:
                 X, y, test_size=test_size, random_state=42
             )
 
+            # Select model
             if algorithm == "Linear Regression":
                 model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
@@ -178,42 +182,45 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            mse = mean_squared_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
-
             st.success("Regression Completed!")
-            st.write(f"### MSE: {mse}")
-            st.write(f"### R² Score: {r2}")
+            st.write("### MSE:", mean_squared_error(y_test, y_pred))
+            st.write("### R² Score:", r2_score(y_test, y_pred))
 
-            fig, ax = plt.subplots(figsize=(8,6))
+            # Plot predictions
+            fig, ax = plt.subplots(figsize=(8, 6))
             ax.scatter(y_test, y_pred)
-            ax.set_xlabel("Actual")
-            ax.set_ylabel("Predicted")
+            ax.set_xlabel("Actual"); ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
-            # ----------------------------
-            # DECISION TREE VISUALIZATION
-            # ----------------------------
+            # ---------------- TREE VISUALIZATION -----------------
             if algorithm == "Decision Tree Regressor":
-                dot_data = BytesIO()
-                export_graphviz(model, out_file=dot_data,
-                                feature_names=feature_cols,
-                                filled=True, rounded=True,
-                                special_characters=True)
-                graph = pydotplus.graph_from_dot_data(dot_data.getvalue().decode())
-                img = Image.open(BytesIO(graph.create_png()))
-                st.image(img, caption="Decision Tree Regressor Visualization")
+                dot_data = StringIO()
+                export_graphviz(
+                    model,
+                    out_file=dot_data,
+                    feature_names=feature_cols,
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+                png = graph.create_png()
+                st.image(png, caption="Decision Tree Regressor")
 
             if algorithm == "Random Forest Regressor":
                 tree = model.estimators_[0]
-                dot_data = BytesIO()
-                export_graphviz(tree, out_file=dot_data,
-                                feature_names=feature_cols,
-                                filled=True, rounded=True,
-                                special_characters=True)
-                graph = pydotplus.graph_from_dot_data(dot_data.getvalue().decode())
-                img = Image.open(BytesIO(graph.create_png()))
-                st.image(img, caption="Random Forest Regressor (Tree 0)")
+                dot_data = StringIO()
+                export_graphviz(
+                    tree,
+                    out_file=dot_data,
+                    feature_names=feature_cols,
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+                png = graph.create_png()
+                st.image(png, caption="Random Forest Regressor - Tree 0")
 
 
         # ----------------------------------------------------
@@ -224,13 +231,14 @@ if uploaded_file:
             y = df[label_col]
 
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
-                y = pd.qcut(y, q=4, labels=[0,1,2,3])
+                y = pd.qcut(y, q=4, labels=[0, 1, 2, 3])
                 y = y.astype(int)
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
 
+            # Select model
             if algorithm == "Logistic Regression":
                 model = LogisticRegression(max_iter=500)
             elif algorithm == "Random Forest Classifier":
@@ -245,38 +253,42 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            acc = accuracy_score(y_test, y_pred)
             st.success("Classification Completed!")
-            st.write(f"### Accuracy: {acc}")
+            st.write("### Accuracy:", accuracy_score(y_test, y_pred))
 
             cm = confusion_matrix(y_test, y_pred)
-            fig, ax = plt.subplots(figsize=(8,6))
+            fig, ax = plt.subplots(figsize=(8, 6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
 
-
-            # ----------------------------
-            # TREE VISUALIZATION
-            # ----------------------------
+            # ---------------- TREE VISUALIZATION -----------------
             if algorithm == "Decision Tree Classifier":
-                dot_data = BytesIO()
-                export_graphviz(model, out_file=dot_data,
-                                feature_names=feature_cols,
-                                class_names=[str(x) for x in np.unique(y)],
-                                filled=True, rounded=True,
-                                special_characters=True)
-                graph = pydotplus.graph_from_dot_data(dot_data.getvalue().decode())
-                img = Image.open(BytesIO(graph.create_png()))
-                st.image(img, caption="Decision Tree Classifier Visualization")
+                dot_data = StringIO()
+                export_graphviz(
+                    model,
+                    out_file=dot_data,
+                    feature_names=feature_cols,
+                    class_names=[str(x) for x in np.unique(y)],
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+                png = graph.create_png()
+                st.image(png, caption="Decision Tree Classifier")
 
             if algorithm == "Random Forest Classifier":
                 tree = model.estimators_[0]
-                dot_data = BytesIO()
-                export_graphviz(tree, out_file=dot_data,
-                                feature_names=feature_cols,
-                                class_names=[str(x) for x in np.unique(y)],
-                                filled=True, rounded=True,
-                                special_characters=True)
-                graph = pydotplus.graph_from_dot_data(dot_data.getvalue().decode())
-                img = Image.open(BytesIO(graph.create_png()))
-                st.image(img, caption="Random Forest Classifier (Tree 0)")
+                dot_data = StringIO()
+                export_graphviz(
+                    tree,
+                    out_file=dot_data,
+                    feature_names=feature_cols,
+                    class_names=[str(x) for x in np.unique(y)],
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+                png = graph.create_png()
+                st.image(png, caption="Random Forest Classifier - Tree 0")
