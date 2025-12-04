@@ -292,3 +292,4 @@ if uploaded_file:
                 graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
                 png = graph.create_png()
                 st.image(png, caption="Random Forest Classifier - Tree 0")
+
